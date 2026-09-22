@@ -25,14 +25,19 @@ import java.util.List;
 /**
  * 首次启动灌入演示数据（user 表为空时）。
  * 演示账号：demo / 123456（另有 alice、bob，密码同）
- * 视频源用 Google 公开样例视频（gtv-videos-bucket），保证开箱能播。
+ * 视频用本地样例文件（server/media/，由后端 /media/** 提供），
+ * 不依赖外部视频源——googleapis 被墙、部分环境外网媒体也拉不动。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 
-    private static final String VIDEO_BASE = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/";
+    private static final List<String> VIDEO_URLS = List.of(
+            "/media/bigbuck10s.mp4",
+            "/media/jellyfish10s.mp4",
+            "/media/sintel10s.mp4",
+            "/media/movie300.mp4");
 
     private final UserMapper userMapper;
     private final VideoMapper videoMapper;
@@ -74,11 +79,6 @@ public class DataSeeder implements CommandLineRunner {
         User bob = newUser("bob", "老王", hash);
         List<User> users = List.of(demo, alice, bob);
 
-        String[] files = {"BigBuckBunny.mp4", "ElephantsDream.mp4", "ForBiggerBlazes.mp4",
-                "ForBiggerEscapes.mp4", "ForBiggerFun.mp4", "ForBiggerJoyrides.mp4",
-                "ForBiggerMeltdowns.mp4", "Sintel.mp4", "SubaruOutbackOnStreetAndDirt.mp4",
-                "TearsOfSteel.mp4", "VolkswagenGTIReview.mp4", "WeAreGoingOnBullrun.mp4"};
-
         for (int i = 0; i < SEED_VIDEOS.size(); i++) {
             SeedVideo seed = SEED_VIDEOS.get(i);
             User author = users.get(i % 3); // 三个作者轮流发
@@ -87,7 +87,7 @@ public class DataSeeder implements CommandLineRunner {
             video.setUserId(author.getId());
             video.setTitle(seed.title());
             video.setDescription(seed.desc());
-            video.setVideoUrl(VIDEO_BASE + files[i]);
+            video.setVideoUrl(VIDEO_URLS.get(i % VIDEO_URLS.size()));
             video.setCoverUrl("https://picsum.photos/seed/vf" + i + "/640/360");
             // 造一些初始热度：点赞/评论/浏览展示值（真实点赞行只造少量，防重复点赞逻辑不受影响）
             video.setLikeCount(8 + (i * 37 + 13) % 200);

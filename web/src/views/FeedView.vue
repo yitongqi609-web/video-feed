@@ -22,7 +22,7 @@
           <el-input v-model="form.description" type="textarea" :rows="2" maxlength="500" />
         </el-form-item>
         <el-form-item label="视频 URL" required>
-          <el-input v-model="form.videoUrl" placeholder="mp4 地址" />
+          <el-input v-model="form.videoUrl" placeholder="mp4 直链，或抖音/B站视频页链接（自动用官方播放器嵌入）" />
         </el-form-item>
         <el-form-item label="封面 URL">
           <el-input v-model="form.coverUrl" placeholder="留空自动生成" />
@@ -98,7 +98,7 @@ const publishing = ref(false)
 const form = reactive({
   title: '',
   description: '',
-  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+  videoUrl: '/media/sintel10s.mp4',
   coverUrl: ''
 })
 

@@ -2,7 +2,28 @@
   <AppLayout>
     <div v-if="detail" class="detail">
       <div class="player-panel">
-        <video class="player" :src="detail.video.videoUrl" :poster="detail.video.coverUrl" controls autoplay />
+        <!-- 智能播放器：媒体直链用 <video>；抖音/B站/YouTube 网页链接用官方 embed 播放器 -->
+        <video
+          v-if="player.kind === 'video'"
+          class="player"
+          :src="player.url"
+          :poster="detail.video.coverUrl"
+          controls
+          autoplay
+        />
+        <iframe
+          v-else-if="player.kind === 'iframe'"
+          class="player"
+          :src="player.url"
+          frameborder="0"
+          scrolling="no"
+          allow="autoplay; encrypted-media; fullscreen"
+          allowfullscreen
+        />
+        <div v-else class="player player-hint">
+          <p>⚠️ {{ player.msg }}</p>
+          <p class="hint-src">{{ detail.video.videoUrl }}</p>
+        </div>
         <div class="video-meta">
           <h2>{{ detail.video.title }}</h2>
           <div class="desc">{{ detail.video.description }}</div>
@@ -52,7 +73,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppLayout from '../components/AppLayout.vue'
@@ -71,6 +92,33 @@ const commentHasMore = ref(false)
 const commentText = ref('')
 const posting = ref(false)
 const isMine = ref(false)
+
+/** 根据视频 URL 自动选择播放方式 */
+const player = computed(() => {
+  const url = detail.value?.video?.videoUrl || ''
+  if (!url) return { kind: 'hint', msg: '视频地址为空' }
+  // 1) 媒体直链（含本地 /media/）→ 原生 video 标签
+  if (url.startsWith('/media/') || /\.(mp4|webm|ogg|m3u8)([?#]|$)/i.test(url)) {
+    return { kind: 'video', url }
+  }
+  // 2) 抖音视频页 → 抖音开放平台官方 embed 播放器
+  let m = url.match(/douyin\.com\/video\/(\d+)/)
+  if (m) return { kind: 'iframe', url: `https://open.douyin.com/player/video?vid=${m[1]}&autoplay=0` }
+  // 3) 哔哩哔哩视频页 → B站官方 embed 播放器
+  m = url.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/)
+  if (m) return {
+    kind: 'iframe',
+    url: `https://player.bilibili.com/player.html?bvid=${m[1]}&autoplay=0&high_quality=1&danmaku=0`
+  }
+  // 4) YouTube
+  m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/)
+  if (m) return { kind: 'iframe', url: `https://www.youtube-nocookie.com/embed/${m[1]}` }
+  // 5) 抖音/B站短链（v.douyin.com / b23.tv）没有视频ID，提示展开成完整链接
+  if (/v\.douyin\.com|b23\.tv/.test(url)) {
+    return { kind: 'hint', msg: '短链无法直接播放：先在浏览器打开该短链，把跳转后的完整地址（含视频ID）复制来发布' }
+  }
+  return { kind: 'hint', msg: '该链接不是可直接播放的视频。支持：mp4/webm 直链、抖音或B站视频页链接' }
+})
 
 onMounted(async () => {
   const id = route.params.id
@@ -147,7 +195,10 @@ function goAuthor() {
 <style scoped>
 .detail { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
 .player-panel { background: #fff; border-radius: 10px; overflow: hidden; }
-.player { width: 100%; aspect-ratio: 16/9; background: #000; display: block; }
+.player { width: 100%; aspect-ratio: 16/9; background: #000; display: block; border: 0; }
+.player-hint { background: #222; color: #ccc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; text-align: center; }
+.player-hint p { margin: 0; font-size: 14px; }
+.hint-src { font-size: 12px; color: #888; word-break: break-all; }
 .video-meta { padding: 16px 18px; }
 h2 { margin: 0 0 8px; font-size: 18px; color: #222; }
 .desc { font-size: 13px; color: #888; margin-bottom: 14px; }
