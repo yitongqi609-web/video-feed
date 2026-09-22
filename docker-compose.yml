@@ -1,0 +1,72 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: video-feed-mysql
+    ports:
+      - "3320:3306"          # 本机 3306~3311 均被占用，统一用 3320
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: video_feed
+      TZ: Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - vf-mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: video-feed-redis
+    ports:
+      - "6390:6379"          # 6379 被其他项目占用
+    volumes:
+      - vf-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.1
+    container_name: video-feed-namesrv
+    ports:
+      - "9881:9876"
+    command: sh mqnamesrv
+    environment:
+      JAVA_OPT_EXT: "-Xms256m -Xmx256m"
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.1
+    container_name: video-feed-broker
+    ports:
+      - "13909:13909"        # VIP 通道（listenPort-2）
+      - "13911:13911"        # 主监听端口
+      - "13912:13912"        # HA 端口（listenPort+1）
+    # Windows 下直接挂载的 conf 偶发启动失败，拷到容器内 /tmp 再用（同 travel 项目验证过的做法）
+    command: sh -c "cp /home/rocketmq/broker.conf /tmp/broker.conf && exec sh mqbroker -n rocketmq-namesrv:9876 -c /tmp/broker.conf"
+    environment:
+      JAVA_OPT_EXT: "-Xms512m -Xmx512m -Xmn128m"
+    volumes:
+      - ./rocketmq/broker.conf:/home/rocketmq/broker.conf:ro
+    depends_on:
+      - rocketmq-namesrv
+    restart: unless-stopped
+
+  rocketmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:latest
+    container_name: video-feed-dashboard
+    ports:
+      - "8183:8080"          # 管理界面 http://localhost:8183
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=rocketmq-namesrv:9876"
+    depends_on:
+      - rocketmq-namesrv
+
+volumes:
+  vf-mysql-data:
+  vf-redis-data:

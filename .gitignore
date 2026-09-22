@@ -1,0 +1,16 @@
+# Build
+server/target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Node
+web/node_modules/
+web/dist/
+
+# Logs & temp
+*.log
+/tmp/
