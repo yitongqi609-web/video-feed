@@ -1,7 +1,8 @@
 <template>
   <div class="card" @click="$router.push('/video/' + item.video.id)">
     <div class="cover-wrap">
-      <img class="cover" :src="item.video.coverUrl" loading="lazy" alt="" />
+      <img v-if="item.video.coverUrl" class="cover" :src="item.video.coverUrl" loading="lazy" alt="" />
+      <div v-else class="cover cover-fallback"><span>{{ item.video.title }}</span></div>
       <div class="play-badge">▶</div>
       <div class="stats">
         <span>❤ {{ formatCount(item.video.likeCount) }}</span>
@@ -35,6 +36,7 @@ defineEmits(['toggle-like'])
 .card:hover { transform: translateY(-2px); }
 .cover-wrap { position: relative; aspect-ratio: 16/9; background: #ddd; }
 .cover { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover-fallback { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 15px; padding: 10px; }
 .play-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 .stats { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 10px; color: #fff; font-size: 12px; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
 .info { padding: 10px 12px 12px; }
