@@ -3,26 +3,30 @@
     <div v-if="detail" class="detail">
       <div class="player-panel">
         <!-- 智能播放器：媒体直链用 <video>；抖音/B站/YouTube 网页链接用官方 embed 播放器 -->
-        <video
-          v-if="player.kind === 'video'"
-          class="player"
-          :src="player.url"
-          :poster="detail.video.coverUrl"
-          controls
-          autoplay
-        />
-        <iframe
-          v-else-if="player.kind === 'iframe'"
-          class="player"
-          :src="player.url"
-          frameborder="0"
-          scrolling="no"
-          allow="autoplay; encrypted-media; fullscreen"
-          allowfullscreen
-        />
-        <div v-else class="player player-hint">
-          <p>⚠️ {{ player.msg }}</p>
-          <p class="hint-src">{{ detail.video.videoUrl }}</p>
+        <!-- 容器比例自适应：原生视频按真实宽高比，抖音竖屏 9:16 居中，不拉伸不裁切 -->
+        <div class="player-box" :class="{ vertical: player.kind === 'iframe' && player.vertical }" :style="boxStyle">
+          <video
+            v-if="player.kind === 'video'"
+            class="player"
+            :src="player.url"
+            :poster="detail.video.coverUrl"
+            controls
+            autoplay
+            @loadedmetadata="onVideoMeta"
+          />
+          <iframe
+            v-else-if="player.kind === 'iframe'"
+            class="player"
+            :src="player.url"
+            frameborder="0"
+            scrolling="no"
+            allow="autoplay; encrypted-media; fullscreen"
+            allowfullscreen
+          />
+          <div v-else class="player player-hint">
+            <p>⚠️ {{ player.msg }}</p>
+            <p class="hint-src">{{ detail.video.videoUrl }}</p>
+          </div>
         </div>
         <div class="video-meta">
           <h2>{{ detail.video.title }}</h2>
@@ -101,10 +105,10 @@ const player = computed(() => {
   if (url.startsWith('/media/') || /\.(mp4|webm|ogg|m3u8)([?#]|$)/i.test(url)) {
     return { kind: 'video', url }
   }
-  // 2) 抖音视频页 → 抖音开放平台官方 embed 播放器
+  // 2) 抖音视频页 → 抖音开放平台官方 embed 播放器（内容多为竖屏，按 9:16 居中显示）
   let m = url.match(/douyin\.com\/video\/(\d+)/)
-  if (m) return { kind: 'iframe', url: `https://open.douyin.com/player/video?vid=${m[1]}&autoplay=0` }
-  // 3) 哔哩哔哩视频页 → B站官方 embed 播放器
+  if (m) return { kind: 'iframe', vertical: true, url: `https://open.douyin.com/player/video?vid=${m[1]}&autoplay=0` }
+  // 3) 哔哩哔哩视频页 → B站官方 embed 播放器（横屏 16:9）
   m = url.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/)
   if (m) return {
     kind: 'iframe',
@@ -119,6 +123,19 @@ const player = computed(() => {
   }
   return { kind: 'hint', msg: '该链接不是可直接播放的视频。支持：mp4/webm 直链、抖音或B站视频页链接' }
 })
+
+/** 原生视频：按真实宽高比显示，竖屏视频限制高度并水平居中，不拉伸 */
+const boxStyle = ref('')
+function onVideoMeta(e) {
+  const v = e.target
+  if (!v.videoWidth || !v.videoHeight) return
+  const ratio = v.videoWidth / v.videoHeight
+  if (ratio >= 1) {
+    boxStyle.value = `aspect-ratio: ${ratio}`
+  } else {
+    boxStyle.value = `aspect-ratio: ${ratio}; width: min(100%, calc(72vh * ${ratio})); margin: 0 auto;`
+  }
+}
 
 onMounted(async () => {
   const id = route.params.id
@@ -195,8 +212,10 @@ function goAuthor() {
 <style scoped>
 .detail { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
 .player-panel { background: #fff; border-radius: 10px; overflow: hidden; }
-.player { width: 100%; aspect-ratio: 16/9; background: #000; display: block; border: 0; }
-.player-hint { background: #222; color: #ccc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; text-align: center; }
+.player-box { width: 100%; background: #000; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+.player-box.vertical { aspect-ratio: 9/16; width: min(100%, calc(72vh * 9 / 16)); margin: 0 auto; }
+.player { width: 100%; height: 100%; background: #000; display: block; border: 0; object-fit: contain; }
+.player-hint { background: #222; color: #ccc; flex-direction: column; gap: 8px; padding: 20px; text-align: center; }
 .player-hint p { margin: 0; font-size: 14px; }
 .hint-src { font-size: 12px; color: #888; word-break: break-all; }
 .video-meta { padding: 16px 18px; }
